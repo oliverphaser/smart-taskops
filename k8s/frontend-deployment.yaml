@@ -15,6 +15,6 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ghcr.io/oliverphaser/smart-taskops-frontend:latest
+          image: ghcr.io/oliverphaser/smart-taskops-frontend:9427b3e3dd3da7ecdab5a7e971afdee4681cf5d3
           ports:
             - containerPort: 80

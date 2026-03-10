@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: task-service
-          image: ghcr.io/oliverphaser/smart-taskops-backend:latest
+          image: ghcr.io/oliverphaser/smart-taskops-backend:9427b3e3dd3da7ecdab5a7e971afdee4681cf5d3
           ports:
             - containerPort: 4001
           envFrom:
