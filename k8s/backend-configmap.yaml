@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: task-service-config
+  namespace: smart-taskops
+data:
+  PORT: "4001"
+  NODE_ENV: "production"
+  MONGODB_URI: "mongodb://mongo-mongodb.smart-taskops.svc.cluster.local:27017/smarttaskops"

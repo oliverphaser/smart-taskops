@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: task-service
+  namespace: smart-taskops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: task-service
+  template:
+    metadata:
+      labels:
+        app: task-service
+    spec:
+      containers:
+        - name: task-service
+          image: ghcr.io/oliverphaser/smart-taskops-backend:latest
+          ports:
+            - containerPort: 4001
+          envFrom:
+            - configMapRef:
+                name: task-service-config

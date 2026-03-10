@@ -1,0 +1,38 @@
+### Változók
+@baseUrl = http://localhost:4000
+@taskId = 000000000000000000000000
+
+### Health
+GET {{baseUrl}}/health
+
+### Összes task
+GET {{baseUrl}}/api/v1/tasks
+
+### Új task létrehozása
+POST {{baseUrl}}/api/v1/tasks
+Content-Type: application/json
+
+{
+  "title": "CI workflow javítása",
+  "description": "A publish lépést ellenőrizni kell.",
+  "priority": "high",
+  "tags": ["ci", "beadás"]
+}
+
+### Task lekérése id alapján
+GET {{baseUrl}}/api/v1/tasks/{{taskId}}
+
+### Task módosítása
+PATCH {{baseUrl}}/api/v1/tasks/{{taskId}}
+Content-Type: application/json
+
+{
+  "status": "in_progress",
+  "priority": "critical"
+}
+
+### Task lezárása
+POST {{baseUrl}}/api/v1/tasks/{{taskId}}/complete
+
+### Task törlése
+DELETE {{baseUrl}}/api/v1/tasks/{{taskId}}

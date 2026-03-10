@@ -1,0 +1,49 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap");
+@import "tailwindcss";
+
+@layer base {
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: #1f2937;
+    font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+    background:
+      radial-gradient(circle at 12% -8%, #d8f0e7 0%, transparent 32%),
+      radial-gradient(circle at 88% -10%, #f7e5cf 0%, transparent 30%),
+      #f6f8f7;
+  }
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fade-in 420ms ease-out;
+  }
+
+  .animate-rise {
+    animation: rise 240ms ease-out;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

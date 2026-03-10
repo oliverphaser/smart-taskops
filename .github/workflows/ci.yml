@@ -1,0 +1,215 @@
+name: Smart TaskOps CI/CD
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  task_service_build:
+    name: Task service build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Forráskód letöltése
+        uses: actions/checkout@v4
+
+      - name: Node.js beállítása
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Függőségek telepítése
+        run: npm install
+
+      - name: Build futtatása
+        run: npm run build
+
+  api_gateway_build:
+    name: API gateway build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api-gateway
+    steps:
+      - name: Forráskód letöltése
+        uses: actions/checkout@v4
+
+      - name: Node.js beállítása
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: api-gateway/package-lock.json
+
+      - name: Függőségek telepítése
+        run: npm install
+
+      - name: Build futtatása
+        run: npm run build
+
+  mcp_server_build:
+    name: MCP server build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcp-server
+    steps:
+      - name: Forráskód letöltése
+        uses: actions/checkout@v4
+
+      - name: Node.js beállítása
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mcp-server/package-lock.json
+
+      - name: Függőségek telepítése
+        run: npm install
+
+      - name: Build futtatása
+        run: npm run build
+
+  frontend_build:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Forráskód letöltése
+        uses: actions/checkout@v4
+
+      - name: Node.js beállítása
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Függőségek telepítése
+        run: npm install
+
+      - name: Build futtatása
+        run: npm run build
+
+  docker_publish:
+    name: Docker image build és feltöltés (GHCR)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
+    needs:
+      - task_service_build
+      - api_gateway_build
+      - mcp_server_build
+      - frontend_build
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Forráskód letöltése
+        uses: actions/checkout@v4
+
+      - name: Docker Buildx beállítása
+        uses: docker/setup-buildx-action@v3
+
+      - name: Bejelentkezés GHCR-be
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker image-ek build és push (retry)
+        env:
+          OWNER: ${{ github.repository_owner }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          build_image() {
+            local image_name="$1"
+            local context_dir="$2"
+            local dockerfile_path="$3"
+
+            docker buildx build \
+              --file "${dockerfile_path}" \
+              --platform linux/amd64 \
+              --tag "ghcr.io/${OWNER}/${image_name}:latest" \
+              --tag "ghcr.io/${OWNER}/${image_name}:${SHA}" \
+              --push \
+              "${context_dir}"
+          }
+
+          retry_build() {
+            local label="$1"
+            local image_name="$2"
+            local context_dir="$3"
+            local dockerfile_path="$4"
+
+            local attempt=1
+            while [ "$attempt" -le 3 ]; do
+              echo "[${label}] próbálkozás: ${attempt}/3"
+              if build_image "${image_name}" "${context_dir}" "${dockerfile_path}"; then
+                echo "[${label}] sikeres feltöltés."
+                return 0
+              fi
+
+              if [ "$attempt" -lt 3 ]; then
+                local wait_seconds=$((attempt * 20))
+                echo "[${label}] átmeneti hiba, újrapróbálás ${wait_seconds} mp múlva..."
+                sleep "${wait_seconds}"
+              fi
+              attempt=$((attempt + 1))
+            done
+
+            echo "[${label}] sikertelen 3 próbálkozás után."
+            return 1
+          }
+
+          retry_build "task-service" "smart-taskops-backend" "./backend" "./backend/Dockerfile"
+          retry_build "api-gateway" "smart-taskops-api-gateway" "./api-gateway" "./api-gateway/Dockerfile"
+          retry_build "mcp-server" "smart-taskops-mcp-server" "./mcp-server" "./mcp-server/Dockerfile"
+          retry_build "frontend" "smart-taskops-frontend" "./frontend" "./frontend/Dockerfile"
+
+  gitops_manifest_update:
+    name: Kubernetes image tagek frissítése
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
+    needs:
+      - docker_publish
+    permissions:
+      contents: write
+    steps:
+      - name: Forráskód letöltése
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: K8s image tagek frissítése
+        env:
+          OWNER: ${{ github.repository_owner }}
+          SHA: ${{ github.sha }}
+        run: |
+          sed -i -E "s#ghcr.io/[^/]+/smart-taskops-backend:[^[:space:]]+#ghcr.io/${OWNER}/smart-taskops-backend:${SHA}#g" k8s/backend-deployment.yaml
+          sed -i -E "s#ghcr.io/[^/]+/smart-taskops-api-gateway:[^[:space:]]+#ghcr.io/${OWNER}/smart-taskops-api-gateway:${SHA}#g" k8s/api-gateway-deployment.yaml
+          sed -i -E "s#ghcr.io/[^/]+/smart-taskops-mcp-server:[^[:space:]]+#ghcr.io/${OWNER}/smart-taskops-mcp-server:${SHA}#g" k8s/mcp-server-deployment.yaml
+          sed -i -E "s#ghcr.io/[^/]+/smart-taskops-frontend:[^[:space:]]+#ghcr.io/${OWNER}/smart-taskops-frontend:${SHA}#g" k8s/frontend-deployment.yaml
+
+      - name: Commit és push
+        run: |
+          if git diff --quiet; then
+            echo "Nincs változás a manifeszt fájlokban."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add k8s/*.yaml
+          git commit -m "chore(cd): image tagek frissítése ${GITHUB_SHA::7}"
+          git push

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mcp-server-config
+  namespace: smart-taskops
+data:
+  API_BASE_URL: "http://api-gateway.smart-taskops.svc.cluster.local:4000/api/v1"
+  MCP_TRANSPORT: "http"
+  MCP_PORT: "4100"

@@ -1,0 +1,71 @@
+Smart TaskOps - rendszerarchitektúra
+
+1) Frontend (React + TypeScript)
+- Két nézet:
+  - Áttekintés oldal
+  - Taskok oldal (lapozással)
+- HTTP hívások: /api/v1/tasks
+- Docker konténerben Nginx szolgálja ki
+
+2) Backend microservice architektúra
+
+2.1) Task Service (Node.js + Express + TypeScript)
+- Feladata: task CRUD műveletek, validáció, MongoDB kapcsolat
+- Végpontok:
+  - GET /health
+  - GET /api/v1/tasks
+  - GET /api/v1/tasks/:id
+  - POST /api/v1/tasks
+  - PATCH /api/v1/tasks/:id
+  - POST /api/v1/tasks/:id/complete
+  - DELETE /api/v1/tasks/:id
+
+2.2) API Gateway (Node.js + Express + TypeScript)
+- Feladata: egységes backend bejárat biztosítás
+- A frontend mindig a gateway-t hívja
+- A gateway továbbítja a task kéréseket a Task Service felé
+
+2.3) MCP Server (külön komponens)
+- Külön futtatható backend komponens
+- Model Context Protocol szerver (HTTP vagy stdio mód)
+- Eszközök:
+  - task_lista
+  - task_letrehozas
+  - task_modositas
+  - task_lezaras
+  - task_torles
+
+3) Adatbázis (MongoDB 8)
+- A Task Service Mongoose-on keresztül éri el
+- Kapcsolat: MONGODB_URI
+
+4) Konténerizáció
+- backend/Dockerfile -> Task Service image
+- api-gateway/Dockerfile -> API Gateway image
+- mcp-server/Dockerfile -> MCP Server image
+- frontend/Dockerfile -> Frontend image
+- docker-compose.yml -> teljes rendszer helyi futtatása
+
+5) CI/CD
+- CI: minden komponens build ellenőrzése
+- Image build + push: GHCR
+- GitOps frissítés: k8s deployment image tagek automatikus frissítése SHA-ra
+- ArgoCD: automatikus sync a git repóból
+
+6) Kubernetes
+- Namespace: smart-taskops
+- Deployments:
+  - task-service
+  - api-gateway
+  - mcp-server
+  - frontend
+- Services:
+  - task-service (ClusterIP)
+  - api-gateway (ClusterIP)
+  - mcp-server (ClusterIP)
+  - frontend (NodePort)
+- MongoDB: Helm chart (Bitnami)
+
+Kapcsolati ábra (szöveges):
+Felhasználó böngésző -> Frontend -> API Gateway -> Task Service -> MongoDB
+Codex/LLM kliens -> MCP Server -> API Gateway -> Task Service -> MongoDB

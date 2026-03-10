@@ -1,0 +1,27 @@
+# Altalanos
+.DS_Store
+*.log
+
+# Backend
+backend/node_modules
+backend/dist
+backend/coverage
+
+# API gateway
+api-gateway/node_modules
+api-gateway/dist
+
+# MCP szerver
+mcp-server/node_modules
+mcp-server/dist
+
+# Frontend
+frontend/node_modules
+frontend/dist
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# Egyeb
+.env
+.env.*

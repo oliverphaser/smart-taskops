@@ -1,0 +1,80 @@
+services:
+  mongo:
+    image: mongo:8
+    container_name: smart-taskops-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  task-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smart-taskops-task-service
+    environment:
+      NODE_ENV: production
+      PORT: 4001
+      MONGODB_URI: mongodb://mongo:27017/smarttaskops
+    depends_on:
+      - mongo
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: smart-taskops-api-gateway
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      TASK_SERVICE_URL: http://task-service:4001
+    ports:
+      - "4000:4000"
+    depends_on:
+      task-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mcp-server:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    container_name: smart-taskops-mcp-server
+    environment:
+      API_BASE_URL: http://api-gateway:4000/api/v1
+      MCP_TRANSPORT: http
+      MCP_PORT: 4100
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    ports:
+      - "4100:4100"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4100/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: smart-taskops-frontend
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
+volumes:
+  mongo_data:
